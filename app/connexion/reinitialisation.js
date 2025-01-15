@@ -1,138 +1,253 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useState } from "react";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
+import Icon from "react-native-vector-icons/FontAwesome";
+import FontAwesome6 from "react-native-vector-icons/FontAwesome6";
 
-export default function PasswordResetScreen() {
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+const ResetPassword = () => {
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [criteria, setCriteria] = useState({
+    length: false,
+    uppercase: false,
+    number: false,
+    specialChar: false,
+  });
+  const [passwordFocus, setPasswordFocus] = useState(false);
+  const [confirmFocus, setConfirmFocus] = useState(false);
 
-  const togglePasswordVisibility = () => setShowPassword(!showPassword);
-  const toggleConfirmPasswordVisibility = () =>
-    setShowConfirmPassword(!showConfirmPassword);
+  const validatePassword = (pwd) => {
+    setCriteria({
+      length: pwd.length >= 8,
+      uppercase: /[A-Z]/.test(pwd),
+      number: /\d/.test(pwd),
+      specialChar: /[!@#$%^&*(),.?":{}|<>]/.test(pwd),
+    });
+  };
+
+  const handlePasswordChange = (text) => {
+    setPassword(text);
+    validatePassword(text);
+  };
+
+  const allCriteriaMet = Object.values(criteria).every((value) => value);
+  const passwordsMatch = password === confirmPassword;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.header}>Réinitialisation</Text>
-      <Text style={styles.subHeader}>Entrez votre nouveau mot de passe</Text>
+    <View style={styles.container}>
+      {/* Cercle décoratif */}
+      <View style={styles.circle} />
 
-      <View style={styles.inputContainer}>
-        <Ionicons name="lock-closed-outline" size={24} color="gray" />
+      <Text style={styles.title}>Réinitialisation</Text>
+      <Text style={styles.passwordInstruction}>Entrez votre nouveau mot de passe</Text>
+
+      {/* Champ "Nouveau mot de passe" */}
+      <View
+        style={[
+          styles.inputContainer,
+          {
+            borderColor: passwordFocus || allCriteriaMet ? "#205895" : "#ccc",
+          },
+        ]}
+      >
+        <FontAwesome6
+          name="unlock-keyhole"
+          size={20}
+          color={password ? "#205895" : "#ccc"}
+          style={styles.iconLeft}
+        />
         <TextInput
           style={styles.input}
-          placeholder="Mot de passe"
           secureTextEntry={!showPassword}
+          placeholder="Nouveau mot de passe"
           value={password}
-          onChangeText={setPassword}
+          onChangeText={handlePasswordChange}
+          onFocus={() => setPasswordFocus(true)}
+          onBlur={() => setPasswordFocus(false)}
         />
-        <TouchableOpacity onPress={togglePasswordVisibility}>
-          <Ionicons
-            name={showPassword ? 'eye-outline' : 'eye-off-outline'}
-            size={24}
-            color="gray"
+        <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.iconRight}>
+          <Icon
+            name={showPassword ? "eye-slash" : "eye"}
+            size={20}
+            color={password ? "#205895" : "#ccc"}
           />
         </TouchableOpacity>
       </View>
 
-      <View style={styles.inputContainer}>
-        <Ionicons name="lock-closed-outline" size={24} color="gray" />
+      {/* Champ "Confirmer mot de passe" */}
+      <View
+        style={[
+          styles.inputContainer,
+          {
+            borderColor:
+              confirmFocus || (confirmPassword && passwordsMatch)
+                ? "#205895"
+                : confirmPassword && !passwordsMatch
+                ? "red"
+                : "#ccc",
+          },
+        ]}
+      >
+        <FontAwesome6
+          name="unlock-keyhole"
+          size={20}
+          color={confirmPassword ? "#205895" : "#ccc"}
+          style={styles.iconLeft}
+        />
         <TextInput
           style={styles.input}
-          placeholder="Confirmer mot de passe"
           secureTextEntry={!showConfirmPassword}
+          placeholder="Confirmer le mot de passe"
           value={confirmPassword}
           onChangeText={setConfirmPassword}
+          onFocus={() => setConfirmFocus(true)}
+          onBlur={() => setConfirmFocus(false)}
         />
-        <TouchableOpacity onPress={toggleConfirmPasswordVisibility}>
-          <Ionicons
-            name={showConfirmPassword ? 'eye-outline' : 'eye-off-outline'}
-            size={24}
-            color="gray"
+        <TouchableOpacity
+          onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+          style={styles.iconRight}
+        >
+          <Icon
+            name={showConfirmPassword ? "eye-slash" : "eye"}
+            size={20}
+            color={confirmPassword ? "#205895" : "#ccc"}
           />
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.requirementsHeader}>
-        Votre mot de passe doit contenir :
-      </Text>
-      <View style={styles.requirements}>
-        <Text style={styles.requirement}>✓ Au moins 8 caractères</Text>
-        <Text style={styles.requirement}>✓ Une majuscule</Text>
-        <Text style={styles.requirement}>✓ Un chiffre</Text>
-        <Text style={styles.requirement}>✓ Un caractère spécial</Text>
+      {/* Texte introductif */}
+      <Text style={styles.criteriaIntro}>Votre mot de passe doit contenir :</Text>
+
+      {/* Critères de validation */}
+      <View style={styles.criteriaContainer}>
+        <View style={styles.criteria}>
+          <Icon
+            name="check-circle"
+            size={20}
+            color={criteria.length ? "#205895" : "#ccc"}
+          />
+          <Text style={styles.criteriaText}>Au moins 8 caractères</Text>
+        </View>
+        <View style={styles.criteria}>
+          <Icon
+            name="check-circle"
+            size={20}
+            color={criteria.uppercase ? "#205895" : "#ccc"}
+          />
+          <Text style={styles.criteriaText}>Une majuscule</Text>
+        </View>
+        <View style={styles.criteria}>
+          <Icon
+            name="check-circle"
+            size={20}
+            color={criteria.number ? "#205895" : "#ccc"}
+          />
+          <Text style={styles.criteriaText}>Un chiffre</Text>
+        </View>
+        <View style={styles.criteria}>
+          <Icon
+            name="check-circle"
+            size={20}
+            color={criteria.specialChar ? "#205895" : "#ccc"}
+          />
+          <Text style={styles.criteriaText}>Un caractère spécial</Text>
+        </View>
       </View>
 
-      <TouchableOpacity style={styles.button}>
+      {/* Bouton Réinitialiser */}
+      <TouchableOpacity
+        style={[
+          styles.button,
+          { backgroundColor: allCriteriaMet && passwordsMatch ? "#205895" : "#ccc" },
+        ]}
+        disabled={!allCriteriaMet || !passwordsMatch}
+      >
         <Text style={styles.buttonText}>Réinitialiser</Text>
       </TouchableOpacity>
-    </SafeAreaView>
+    </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    padding: 20,
-    justifyContent: 'center',
+    padding: 40,
+    justifyContent: "center",
+    backgroundColor: "#fff",
   },
-  header: {
+  circle: {
+    position: "absolute",
+    top: -100,
+    right: -100,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: "#205895",
+  },
+  title: {
     fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 10,
+    fontWeight: "bold",
+    marginBottom: 15,
+    color: "#205895",
+    textAlign: "center",
   },
-  subHeader: {
-    fontSize: 16,
-    textAlign: 'center',
-    color: 'gray',
-    marginBottom: 30,
+  passwordInstruction: {
+    fontSize: 14,
+    marginBottom: 35,
+    color: "#181008",
+    textAlign: "center",
   },
   inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     borderWidth: 1,
-    borderColor: 'gray',
-    borderRadius: 8,
+    borderRadius: 32,
+    marginBottom: 10,
     paddingHorizontal: 10,
-    paddingVertical: 5,
-    marginBottom: 20,
   },
   input: {
     flex: 1,
-    marginLeft: 10,
-    fontSize: 16,
+    fontSize: 14,
+    paddingVertical: 10,
   },
-  requirementsHeader: {
-    fontSize: 16,
-    fontWeight: 'bold',
+  iconLeft: {
+    marginRight: 10,
+  },
+  iconRight: {
+    marginLeft: 10,
+  },
+  criteriaIntro: {
+    fontSize: 14,
+    marginVertical: 10,
+    color: "#181008",
+  },
+  criteriaContainer: {
+    marginVertical: 0,
+  },
+  criteria: {
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 10,
   },
-  requirements: {
-    marginBottom: 30,
-  },
-  requirement: {
+  criteriaText: {
+    marginLeft: 8,
     fontSize: 14,
-    color: 'gray',
-    marginBottom: 5,
+    color: "#181008",
   },
   button: {
-    backgroundColor: '#0056b3',
-    paddingVertical: 15,
-    borderRadius: 8,
-    alignItems: 'center',
+    padding: 12,
+    borderRadius: 32,
+    alignItems: "center",
+    marginTop: 25,
   },
   buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "bold",
   },
 });
+
+export default ResetPassword;

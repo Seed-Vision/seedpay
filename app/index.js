@@ -1,7 +1,7 @@
 import {Redirect } from "expo-router";
 
 const Page = () => {
-    return <Redirect href= "/connexion/reinitialisation"/>;
+    return <Redirect href= "/connexion/reinitialiser"/>;
 }
 
 export default Page;
