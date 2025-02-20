@@ -22,7 +22,7 @@ async function bootstrap() {
     });
 
     app.enableCors();
-    app.setGlobalPrefix('omertaa');
+    app.setGlobalPrefix('seed');
     app.useGlobalPipes(new ValidationPipe());
     //affichage des log dans le terminal pour raison de sécurité j'ai commenté
     // app.use(morgan('dev'));
