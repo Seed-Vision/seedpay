@@ -7,6 +7,11 @@ import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { UserEntity } from '../controllers/models/user.entity';
 import { User } from '../controllers/models/user.class';
+import { MailerService } from 'src/mailer/mailer.service';
+import * as speakeasy from 'speakeasy';
+import * as dotenv from 'dotenv';
+
+dotenv.config();
 
 @Injectable()
 export class AuthService {
@@ -14,6 +19,7 @@ export class AuthService {
         @InjectRepository(UserEntity)
         private readonly userRepository: Repository<UserEntity>,
         private jwtService: JwtService,
+        private readonly mailerService: MailerService,
     ) {}
 
     hashPassword(password: string): Observable<string> {
@@ -35,6 +41,7 @@ export class AuthService {
                 ).pipe(
                     map((user: User) => {
                         delete user.password;
+                        this.sendConfirmationEmail(user.email);
                         return user;
                     }),
                     catchError(err => {
@@ -43,6 +50,14 @@ export class AuthService {
                 ),
             ),
         );
+    }
+
+    private async sendConfirmationEmail(userEmail: string) {
+        const token = await this.jwtService.signAsync({ email: userEmail }, { expiresIn: '1h' });
+
+        const confirmationUrl = `http://localhost:3000/auth/confirm?token=${token}`;
+
+        await this.mailerService.sendSignupConfirmation(userEmail, confirmationUrl);
     }
 
     validateUser(email: string, password: string): Observable<User> {
@@ -98,6 +113,93 @@ export class AuthService {
             }),
             catchError(err => {
                 return throwError(() => err);
+            }),
+        );
+    }
+
+    // 🔹 Génération et envoi du OTP pour réinitialisation de mot de passe
+    resetPasswordDemand(email: string) {
+        return from(
+            this.userRepository.findOne({ where: { email } })
+        ).pipe(
+            switchMap(user => {
+                if (!user) {
+                    return throwError(() =>
+                        new HttpException(
+                            { status: HttpStatus.NOT_FOUND, error: 'Email non trouvé' },
+                            HttpStatus.NOT_FOUND,
+                        ),
+                    );
+                }
+
+                // Générer un OTP sécurisé avec Speakeasy
+                const otp = speakeasy.totp({
+                    secret: process.env.SPEAKEASY_SECRET,
+                    digits: 5,
+                    step: 60 * 15,
+                    encoding: 'base32',
+                });
+
+                console.log(`OTP généré pour ${email} :`, otp);
+
+                // Envoi de l'email contenant l'OTP
+                return from(this.mailerService.sendPasswordResetOTP(user.email, otp));
+            }),
+            catchError(err => {
+                return throwError(() => new HttpException('Erreur lors de la demande de réinitialisation', HttpStatus.INTERNAL_SERVER_ERROR));
+            })
+        );
+    }
+
+    // 🔹 Vérification de l'OTP saisi par l'utilisateur
+    verifyOTP(email: string, otp: string): boolean {
+        return speakeasy.totp.verify({
+            secret: process.env.SPEAKEASY_SECRET,
+            encoding: 'base32',
+            token: otp,
+            window: 1, // Permet une légère tolérance dans le temps
+        });
+    }
+
+    // 🔹 Réinitialisation du mot de passe avec confirmation de l'OTP
+    resetPasswordConfirmation(email: string, otp: string, newPassword: string): Observable<any> {
+        return from(this.userRepository.findOne({ where: { email } })).pipe(
+            switchMap(user => {
+                if (!user) {
+                    return throwError(() =>
+                        new HttpException(
+                            { status: HttpStatus.NOT_FOUND, error: 'Email non trouvé' },
+                            HttpStatus.NOT_FOUND,
+                        ),
+                    );
+                }
+
+                // Vérification de l'OTP
+                const isOtpValid = this.verifyOTP(email, otp);
+                if (!isOtpValid) {
+                    return throwError(() =>
+                        new HttpException(
+                            { status: HttpStatus.BAD_REQUEST, error: 'OTP invalide' },
+                            HttpStatus.BAD_REQUEST,
+                        ),
+                    );
+                }
+
+                // Hachage du nouveau mot de passe
+                return this.hashPassword(newPassword).pipe(
+                    switchMap(hashedPassword => {
+                        user.password = hashedPassword;
+                        return from(this.userRepository.save(user)).pipe(
+                            map(() => ({
+                                status: 'success',
+                                message: 'Mot de passe réinitialisé avec succès',
+                            })),
+                        );
+                    }),
+                );
+            }),
+            catchError(err => {
+                return throwError(() => new HttpException('Erreur lors de la réinitialisation du mot de passe', HttpStatus.INTERNAL_SERVER_ERROR));
             }),
         );
     }
