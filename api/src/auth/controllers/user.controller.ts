@@ -1,13 +1,20 @@
-import { Controller, Post, UploadedFile, UseGuards, UseInterceptors, Request, BadRequestException, Logger, Res, Get, Param, NotFoundException, HttpCode, Put, Body } from '@nestjs/common';
+import { 
+    Controller, Post, UploadedFile, UseGuards, UseInterceptors, Request, 
+    BadRequestException, Logger, Res, Get, Param, NotFoundException, 
+    HttpCode, Put, Body, Delete 
+} from '@nestjs/common';
 import { JwtGuard } from '../guards/jwt.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { isFileExtensionSafe, saveImageToStorage, removeFile } from '../helpers/image-storage';
-import { UserService } from '../services/user.service';
+
 import { switchMap, catchError, of, Observable } from 'rxjs';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import { User } from './models/user.class';
 import { FriendRequest, FriendRequestStatus } from './models/friend-request.interface';
+import { Role } from './models/role.enum';
+import { UpdateResult, DeleteResult } from 'typeorm';
+import { UserService } from '../services/user.service';
 
 @Controller('user')
 export class UserController {
@@ -15,12 +22,41 @@ export class UserController {
 
     constructor(private userService: UserService) {}
 
+    // Récupérer tous les utilisateurs
+    @UseGuards(JwtGuard)
+    @Get('all')
+    getAllUsers(): Observable<User[]> {
+        return this.userService.getAllUsers();
+    }
+
+    // Récupérer un utilisateur par ID
+    @UseGuards(JwtGuard)
+    @Get(':id')
+    findUserById(@Param('id') userId: number): Observable<User> {
+        return this.userService.findUserById(userId);
+    }
+
+    // Supprimer un utilisateur
+    @UseGuards(JwtGuard)
+    @Delete(':id')
+    deleteUserById(@Param('id') userId: number): Observable<DeleteResult> {
+        return this.userService.deleteUserById(userId);
+    }
+
+    // Donner le rôle admin à un utilisateur
+    @UseGuards(JwtGuard)
+    @Put('assign-admin/:id')
+    assignAdminRole(@Param('id') userId: number): Observable<UpdateResult> {
+        return this.userService.assignAdminRole(userId);
+    }
+
+    // Upload d'image de profil
     @UseGuards(JwtGuard)
     @Post('upload')
     @UseInterceptors(FileInterceptor('file', saveImageToStorage))
     uploadImage(@UploadedFile() file: Express.Multer.File, @Request() req): Observable<{ avatarUrl: string }> {
         if (!file) {
-            throw new BadRequestException('Aucun fichier téléchargé ou fichier invalide. Veuillez télécharger une image.');
+            throw new BadRequestException('Aucun fichier téléchargé ou fichier invalide.');
         }
 
         const userId = req.user.id;
@@ -37,7 +73,7 @@ export class UserController {
                     );
                 } else {
                     removeFile(fullImagePath);
-                    this.logger.error(`Type de fichier non autorisé. Types valides: image/jpeg, image/jpg, image/png`);
+                    this.logger.error('Type de fichier non autorisé.');
                     throw new BadRequestException('Type de fichier non autorisé.');
                 }
             }),
@@ -49,6 +85,7 @@ export class UserController {
         );
     }
 
+    // Récupérer l'image d'un utilisateur
     @UseGuards(JwtGuard)
     @Get('image/:imageName')
     findImage(@Param('imageName') imageName: string, @Res() res): void {
@@ -62,6 +99,7 @@ export class UserController {
         }
     }
 
+    // Récupérer le nom de l'image d'un utilisateur
     @UseGuards(JwtGuard)
     @Get('image-name')
     findUserImageName(@Request() req): Observable<{ imageName: string }> {
@@ -77,49 +115,35 @@ export class UserController {
         );
     }
 
-    @UseGuards(JwtGuard)
-    @Get(':userId')
-    findUserById(@Param('userId') userStringId: string): Observable<User> {
-        const userId = parseInt(userStringId);
-        return this.userService.findUserById(userId);
-    }
-
+    // Envoyer une demande d'ami
     @UseGuards(JwtGuard)
     @Post('friend-request/send/:receiverId')
-    @HttpCode(201) // Envoi un code 201 pour une requête réussie
-    sendFriendRequest(@Param('receiverId') receiverStringId: string, @Request() req): Observable<FriendRequest | { error: string }> {
-        const receiverId = parseInt(receiverStringId);
-        
+    @HttpCode(201)
+    sendFriendRequest(@Param('receiverId') receiverId: number, @Request() req): Observable<FriendRequest | { error: string }> {
         if (isNaN(receiverId)) {
             throw new BadRequestException('L\'ID du destinataire est invalide.');
         }
-    
-        const creator = req.user; // Récupérer l'utilisateur authentifié
-        return this.userService.sendFriendRequest(receiverId, creator);
+        return this.userService.sendFriendRequest(receiverId, req.user);
     }
 
+    // Obtenir le statut d'une demande d'ami
     @UseGuards(JwtGuard)
     @Get('friend-request/status/:receiverId')
-    getFriendRequestStatus(@Param('receiverId') receiverStringId: string, @Request() req): Observable<FriendRequestStatus> {
-        const receiverId = parseInt(receiverStringId);
+    getFriendRequestStatus(@Param('receiverId') receiverId: number, @Request() req): Observable<FriendRequestStatus> {
         return this.userService.getFriendRequestStatus(receiverId, req.user);
     }
 
-
+    // Répondre à une demande d'ami
     @UseGuards(JwtGuard)
     @Put('friend-request/response/:friendRequestId')
-    respondToFriendRequest(
-        @Param('friendRequestId') friendRequestStringId: string, 
-        @Body() statusResponse: FriendRequestStatus): Observable<FriendRequestStatus> {
-        const friendRequestId = parseInt(friendRequestStringId);
-        return this.userService.respondToFriendRequest(statusResponse.status, friendRequestId );
+    respondToFriendRequest(@Param('friendRequestId') friendRequestId: number, @Body() statusResponse: FriendRequestStatus): Observable<FriendRequestStatus> {
+        return this.userService.respondToFriendRequest(statusResponse.status, friendRequestId);
     }
 
+    // Récupérer les demandes d'amis reçues
     @UseGuards(JwtGuard)
-    @Get('friend-request/me/:received-requests')
-    getFriendRequestsFromRecipients(
-         @Request() req,
-        ): Observable<FriendRequestStatus[]> {
+    @Get('friend-request/me/received-requests')
+    getFriendRequestsFromRecipients(@Request() req): Observable<FriendRequestStatus[]> {
         return this.userService.getFriendRequestsFromRecipients(req.user);
     }
 }
