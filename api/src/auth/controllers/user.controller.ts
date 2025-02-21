@@ -15,6 +15,8 @@ import { FriendRequest, FriendRequestStatus } from './models/friend-request.inte
 import { Role } from './models/role.enum';
 import { UpdateResult, DeleteResult } from 'typeorm';
 import { UserService } from '../services/user.service';
+import { RolesGuard } from '../guards/roles.guard';
+import { Roles } from '../decorators/roles.decorator';
 
 @Controller('user')
 export class UserController {
@@ -23,7 +25,9 @@ export class UserController {
     constructor(private userService: UserService) {}
 
     // Récupérer tous les utilisateurs
-    @UseGuards(JwtGuard)
+   
+    @UseGuards(JwtGuard, RolesGuard)  // Vérifie si l'utilisateur est authentifié et admin
+    @Roles(Role.ADMIN)
     @Get('all')
     getAllUsers(): Observable<User[]> {
         return this.userService.getAllUsers();
@@ -37,14 +41,16 @@ export class UserController {
     }
 
     // Supprimer un utilisateur
-    @UseGuards(JwtGuard)
+    @UseGuards(JwtGuard, RolesGuard)  // Vérifie si l'utilisateur est authentifié et admin
+    @Roles(Role.ADMIN)
     @Delete(':id')
     deleteUserById(@Param('id') userId: number): Observable<DeleteResult> {
         return this.userService.deleteUserById(userId);
     }
 
     // Donner le rôle admin à un utilisateur
-    @UseGuards(JwtGuard)
+    @UseGuards(JwtGuard, RolesGuard)  // Vérifie si l'utilisateur est authentifié et admin
+    @Roles(Role.ADMIN)
     @Put('assign-admin/:id')
     assignAdminRole(@Param('id') userId: number): Observable<UpdateResult> {
         return this.userService.assignAdminRole(userId);

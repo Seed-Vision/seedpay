@@ -34,7 +34,7 @@ export class MailerService {
     `;
 
     await transporter.sendMail({
-      from: 'support@omertaa.com',
+      from: 'support@seedpay.com',
       to: userEmail,
       subject: 'Confirmation de l\'inscription',
       html: htmlContent,
@@ -58,7 +58,7 @@ export class MailerService {
     `;
 
     await transporter.sendMail({
-      from: 'support@omertaa.com',
+      from: 'support@seedpay.com',
       to: userEmail,
       subject: 'Votre code OTP de réinitialisation',
       html: htmlContent,
