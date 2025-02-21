@@ -10,6 +10,7 @@ import { UserModule } from './auth/controllers/models/user.module';
 import { APP_FILTER } from '@nestjs/core';
 import { AllExceptionsFilter } from './core/all-exceptions.filter';
 import { MailerModule } from './mailer/mailer.module';
+import { FeexpayModule } from './feexpay/feexpay.module';
 
 @Module({
   //**configuration base de donnée postgres */
@@ -28,7 +29,8 @@ import { MailerModule } from './mailer/mailer.module';
     FeedModule,
     AuthModule,
      UserModule,
-     MailerModule, 
+     MailerModule,
+     FeexpayModule, 
   ],
   controllers: [AppController],  // Gère le contrôleur principal
   providers: [AppService, {

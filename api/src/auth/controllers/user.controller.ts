@@ -49,7 +49,8 @@ export class UserController {
     }
 
     // Donner le rôle admin à un utilisateur
-    @UseGuards(JwtGuard)
+    @UseGuards(JwtGuard, RolesGuard)  // Vérifie si l'utilisateur est authentifié et admin
+    @Roles(Role.ADMIN)
     @Put('assign-admin/:id')
     assignAdminRole(@Param('id') userId: number): Observable<UpdateResult> {
         return this.userService.assignAdminRole(userId);
